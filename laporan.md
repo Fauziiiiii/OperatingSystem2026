@@ -1,6 +1,12 @@
 # Praktikum Sistem Operasi – Pertemuan 1  
 ### Pengenalan Sistem Operasi & Instalasi Ubuntu Server
 
+> Nama   : Muhammad Fauzi Fadillah
+>
+> NIM    : 254107020085
+>
+> Kelas  : TI_1G
+
 ---
 
 # LATIHAN 1.1  
@@ -21,11 +27,11 @@ Fungsi:
 
 Contoh:
 
-Pada **:contentReference[oaicite:0]{index=0}**:
+Pada Windows:
 - Task Manager menampilkan proses aktif
 - End Task untuk menghentikan aplikasi
 
-Pada **:contentReference[oaicite:1]{index=1}**:
+Pada Linux:
 - `ps`, `top`, `htop` untuk melihat proses
 - `kill` untuk menghentikan proses
 
