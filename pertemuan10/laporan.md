@@ -967,11 +967,432 @@ SwapFree:  4718584 kB
 
 ## Tugas 10.2 Identifikasi Proses dengan Memori Tertinggi
 
-### Langkah 1: Buat script memory-audit.sh yang menghasilkan laporan kondisi memori sistem secara otomatis.
+### Langkah 1:  Simpan daftar 10 proses pengguna memori terbesar ke file.
 
 Command:
 
 ```bash
-nano ~/praktikum-os/week10-memory/memory-audit.sh
+ps aux --sort=-%mem | head -n 10 > top-memory-process.txt
+cat top-memory-process.txt
 ```
 
+
+Output:
+
+```bash
+root@UbuntuServer:~/praktikum-os/week10-memory# ps aux --sort=-%mem | head -n 10 > top-memory-process.txt
+root@UbuntuServer:~/praktikum-os/week10-memory# cat top-memory-process.txt
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root        1142  0.0  1.1 691508 44200 ?        Ssl  14:08   0:02 /usr/libexec/fwupd/fwupd
+root         367  0.0  0.6 288988 27324 ?        SLsl 13:57   0:01 /sbin/multipathd -d -s
+root         651  0.0  0.5 109684 23180 ?        Ssl  13:57   0:00 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+root         312  0.0  0.4  66856 17340 ?        S<s  13:57   0:00 /usr/lib/systemd/systemd-journald
+root         623  0.0  0.3 468972 13620 ?        Ssl  13:57   0:00 /usr/libexec/udisks2/udisksd
+root           1  0.0  0.3  22216 13248 ?        Ss   13:57   0:02 /sbin/init splash noprompt noshell automatic-ubiquity
+systemd+     462  0.0  0.3  21584 12996 ?        Ss   13:57   0:00 /usr/lib/systemd/systemd-resolved
+root         681  0.0  0.3 392032 12912 ?        Ssl  13:57   0:00 /usr/sbin/ModemManager
+fauzi        967  0.0  0.2  20100 11256 ?        Ss   14:00   0:00 /usr/lib/systemd/systemd --user
+```
+
+
+**Analisis**
+1. Proses apa di urutan pertama? Catat nilai %MEM dan RSS.  
+Jawaban:  
+Proses: fwupd  
+%MEM = 1.1%  
+RSS = 44,200 KB
+
+2. Konversikan RSS ke MB (bagi 1024). Apakah wajar?  
+Jawaban:  
+44200÷1024=43.16 MB  
+Ya, sangat wajar. Karena fwupd adalah service update firmware. Penggunaan 43 MB tergolong kecil. Server punya RAM kurang lebih 3.7 GB dan ini sangat ringan
+
+3. Jumlahkan %MEM dari 5 proses teratas. Berapa persen RAM yang mereka
+gunakan bersama?  
+Jawaban:  
+fwupd: 1.1  
+multipathd:	0.6  
+unattended-upgrade-shutdown: 0.5  
+systemd-journald: 0.4  
+udisksd:0.3
+
+penjumlahan: 1.1+0.6+0.5+0.4+0.3=2.9%
+Jadi total penggunaan dari 5 proses terbesar kurang lebih 2.9% RAM
+
+
+---
+
+
+## Tugas 10.3 Membuat dan Memverifikasi Swap File
+Instruksi: Buat swap file khusus tugas sebesar 256 MB dan verifikasi.
+
+
+### Langkah 1:  Buat dan aktifkan swap file tugas
+
+Command:
+
+```bash
+sudo fallocate -l 256M /swapfile-tugas-week10
+sudo chmod 600 /swapfile-tugas-week10
+sudo mkswap /swapfile-tugas-week10
+sudo swapon /swapfile-tugas-week10
+```
+
+
+Output:
+
+```bash
+root@UbuntuServer:~/praktikum-os/week10-memory# sudo fallocate -l 256M /swapfile-tugas-week10
+root@UbuntuServer:~/praktikum-os/week10-memory# sudo chmod 600 /swapfile-tugas-week10
+root@UbuntuServer:~/praktikum-os/week10-memory# sudo mkswap /swapfile-tugas-week10
+Setting up swapspace version 1, size = 256 MiB (268431360 bytes)
+no label, UUID=0831d044-a5f7-441a-acdc-d8f844afc280
+root@UbuntuServer:~/praktikum-os/week10-memory# sudo swapon /swapfile-tugas-week10
+root@UbuntuServer:~/praktikum-os/week10-memory#
+```
+
+
+### Langkah 2: Verifikasi dan simpan hasil
+
+Command:
+
+```bash
+{
+    echo "=== VERIFIKASI SWAP ==="
+    swapon --show
+    echo
+    free -h
+} > swap-check.txt
+
+cat swap-check.txt
+```
+
+
+Output:
+
+```bash
+root@UbuntuServer:~/praktikum-os/week10-memory# {
+    echo "=== VERIFIKASI SWAP ==="
+    swapon --show
+    echo
+    free -h
+} > swap-check.txt
+
+cat swap-check.txt
+=== VERIFIKASI SWAP ===
+NAME                   TYPE SIZE USED PRIO
+/swapfile              file   4G   0B   -2
+/swapfile-week10       file 512M   0B   -3
+/swapfile-tugas-week10 file 256M   0B   -4
+
+               total        used        free      shared  buff/cache   available
+Mem:           3.7Gi       460Mi       2.0Gi       1.0Mi       1.5Gi       3.3Gi
+Swap:          4.7Gi          0B       4.7Gi
+```
+
+
+**Analisis**
+1. Identifikasi kolom NAME, TYPE, SIZE, dan USED pada output swapon –show.  
+Jawaban:  
+=== VERIFIKASI SWAP ===  
+NAME                   TYPE SIZE USED PRIO  
+/swapfile              file   4G   0B   -2  
+/swapfile-week10       file 512M   0B   -3  
+/swapfile-tugas-week10 file 256M   0B   -4  
+
+Penjelasan kolom:  
+NAME: Nama file atau device swap  
+TYPE: Jenis swap  
+SIZE: Ukuran swap  
+USED: Jumlah swap yang sedang digunakan  
+PRIO: Prioritas penggunaan swap
+
+2. Apakah nilai total pada baris Swap di free -h bertambah 256 MB?  
+Jawaban:  
+Ya, total swap bertambah sekitar 256 MB
+
+3. Mengapa permission 600 penting? Apa risiko jika diatur ke 644?  
+Jawaban:  
+Permission 600 penting untuk swap yang bisa menyimpan:  
+Data sementara dari RAM. Bisa termasuk password, data aplikasi, informasi sensitif  
+Risiko jika permission 644 adalah User lain bisa membaca swap file menjadikan beberapa kemungkinan resikonya yaitu Kebocoran data sensitif, Potensi eksploitasi keamanan, Melanggar prinsip keamanan sistem Linux
+
+
+
+---
+
+
+## Tugas 10.4 Analisis System Call dengan strace
+Instruksi: Analisis system call yang dipanggil perintah ls.
+
+
+### Langkah 1:  Simpan ringkasan dan detail system call
+
+Command:
+
+```bash
+strace -c ls 2> strace-summary.txt
+strace ls /etc 2> strace-ls-etc.txt
+cat strace-summary.txt
+```
+
+
+Output:
+
+```bash
+root@UbuntuServer:~/praktikum-os/week10-memory# strace -c ls 2> strace-summary.txt
+memory-audit.sh  memory-report.txt  monitor-memori.sh  strace-summary.txt  swap-check.txt  syscall-case  top-memory-process.txt
+root@UbuntuServer:~/praktikum-os/week10-memory# strace ls /etc 2> strace-ls-etc.txt
+adduser.conf            cron.daily            ethertypes   hosts.allow      libibverbs.d    mke2fs.conf          os-release        rc0.d          sgml               sysstat              vmware-tools
+alternatives            cron.hourly           fonts        hosts.deny       libnl-3         ModemManager         overlayroot.conf  rc1.d          shadow             systemd              vtrgb
+apparmor                cron.monthly          fstab        ImageMagick-6    libpaper.d      modprobe.d           PackageKit        rc2.d          shadow-            terminfo             w3m
+apparmor.d              crontab               fuse.conf    init.d           locale.alias    modules              pam.conf          rc3.d          shells             thermald             wgetrc
+apport                  cron.weekly           fwupd        initramfs-tools  locale.conf     modules-load.d       pam.d             rc4.d          skel               timezone             X11
+apt                     cron.yearly           gai.conf     inputrc          locale.gen      mtab                 papersize         rc5.d          sos                tmpfiles.d           xattr.conf
+bash.bashrc             cryptsetup-initramfs  ghostscript  iproute2         localtime       multipath            passwd            rc6.d          ssh                ubuntu-advantage     xdg
+bash_completion         crypttab              gnutls       iscsi            logcheck        multipath.conf       passwd-           rcS.d          ssl                ucf.conf             xml
+bash_completion.d       dbus-1                groff        issue            login.defs      nanorc               perl              resolv.conf    subgid             udev                 zsh_command_not_found
+bindresvport.blacklist  debconf.conf          group        issue.net        logrotate.conf  needrestart          pki               rmt            subgid-            udisks2
+binfmt.d                debian_version        group-       kernel           logrotate.d     netconfig            plymouth          rpc            subuid             ufw
+byobu                   default               grub.d       landscape        lsb-release     netplan              pm                rsyslog.conf   subuid-            update-manager
+ca-certificates         deluser.conf          gshadow      ldap             lvm             network              polkit-1          rsyslog.d      sudo.conf          update-motd.d
+ca-certificates.conf    depmod.d              gshadow-     ld.so.cache      machine-id      networkd-dispatcher  pollinate         screenrc       sudoers            update-notifier
+cloud                   dhcp                  gss          ld.so.conf       magic           networks             profile           security       sudoers.d          UPower
+console-setup           dhcpcd.conf           hdparm.conf  ld.so.conf.d     magic.mime      newt                 profile.d         selinux        sudo_logsrvd.conf  usb_modeswitch.conf
+credstore               dpkg                  host.conf    legal            manpath.config  nftables.conf        protocols         sensors3.conf  supercat           usb_modeswitch.d
+credstore.encrypted     e2scrub.conf          hostname     libaudit.conf    mdadm           nsswitch.conf        python3           sensors.d      sysctl.conf        vconsole.conf
+cron.d                  environment           hosts        libblockdev      mime.types      opt                  python3.12        services       sysctl.d           vim
+root@UbuntuServer:~/praktikum-os/week10-memory# cat strace-summary.txt
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 34.51    0.001153          64        18           mmap
+ 15.71    0.000525         105         5           read
+ 10.06    0.000336          67         5           mprotect
+  8.98    0.000300          33         9           close
+  6.70    0.000224          32         7           openat
+  3.53    0.000118          59         2         2 statfs
+  3.50    0.000117          14         8           fstat
+  2.90    0.000097          32         3           brk
+  2.69    0.000090          45         2           ioctl
+  1.83    0.000061          61         1           munmap
+  1.62    0.000054          27         2           pread64
+  1.41    0.000047          23         2         2 access
+  1.41    0.000047          47         1           prlimit64
+  1.29    0.000043          43         1           set_tid_address
+  1.29    0.000043          43         1           set_robust_list
+  1.23    0.000041          41         1           rseq
+  1.11    0.000037          37         1           arch_prctl
+  0.24    0.000008           8         1           getrandom
+  0.00    0.000000           0         1           write
+  0.00    0.000000           0         1           execve
+  0.00    0.000000           0         2           getdents64
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.003341          45        74         4 total
+```
+
+
+**Analisis**
+1. Sebutkan minimal 5 system call dari strace-summary.txt beserta fungsi
+singkatnya.  
+Jawaban:  
+mmap: Memetakan file atau library ke memori. Digunakan saat program load library (misalnya libc)  
+read: Membaca data dari file descriptor. Contohnya membaca isi file atau library  
+openat: Membuka file (dengan path relatif/absolut). Digunakan untuk akses file seperti /etc, library, dll  
+close: Menutup file descriptor setelah selesai digunakan  
+fstat: Mengambil informasi metadata file  
+getdents64: Membaca isi direktori. Digunakan oleh ls untuk menampilkan daftar file
+
+2. System call mana yang paling sering dipanggil? Mengapa?  
+Jawaban:  
+System call paling sering: mmap  
+Karena program ls membutuhkan banyak library. Library tersebut dimuat ke memori menggunakan mmap. Maka mmap paling dominan
+
+3. Apakah ada errors lebih dari 0? Apakah program tetap berjalan normal
+meskipun ada kegagalan tersebut?  
+Jawaban:  
+Ada, totalnya 4. Tapi normal, tidak mempengaruhi jalannya program. Errornya bisa disebut expected error atau bagian dari logika program
+
+
+
+---
+
+
+## Tugas 10.5 Studi Kasus Diagnosa Server Lambat
+Skenario: Server terasa lambat. Buat script diagnosa yang menggabungkan semua
+pemeriksaan dari bab ini menggunakan fungsi Bash.
+
+
+
+### Langkah 1:  Buka file dengan nano
+
+Command:
+
+```bash
+nano ~/praktikum-os/week10-memory/diagnosa-server.sh
+```
+
+
+### Langkah 2:  Isi file diagnosa-server.sh
+
+Command:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+LAPORAN="diagnosa-server-lambat.txt"
+WARN_MEM=false
+WARN_SWAP=0
+
+cek_memori() {
+    echo "--- Kondisi Memori ---"
+    free -h
+    echo
+    AVAIL_PCT=$(free | awk '/Mem/ {printf "%d", $7/$2*100}')
+    if [ "$AVAIL_PCT" -lt 20 ]; then
+        echo "PERINGATAN: Memori tersedia hanya ${AVAIL_PCT}%"
+        WARN_MEM=true
+    fi
+}
+
+cek_swap() {
+    echo "--- Penggunaan Swap ---"
+    swapon --show 2>/dev/null || echo "Tidak ada swap aktif"
+    echo
+    WARN_SWAP=$(free | awk '/Swap/ {print $3}')
+    if [ "$WARN_SWAP" -gt 0 ]; then
+        echo "INFO: Swap digunakan (${WARN_SWAP} kB)"
+    fi
+}
+
+cek_proses() {
+    echo "--- 10 Proses Memori Tertinggi ---"
+    ps aux --sort=-%mem | head -n 11
+    echo
+}
+
+cek_paging() {
+    echo "--- Aktivitas Paging (5 sampel) ---"
+    vmstat 1 5
+    echo
+}
+
+ringkasan() {
+    echo "=== RINGKASAN ==="
+    if [ "$WARN_MEM" = true ]; then
+        echo "- Memori: KRITIS - perlu tindakan segera"
+    else
+        echo "- Memori: normal"
+    fi
+    if [ "$WARN_SWAP" -gt 0 ]; then
+        echo "- Swap: aktif - pantau aktivitas paging"
+    else
+        echo "- Swap: tidak digunakan"
+    fi
+}
+
+{
+    echo "=== LAPORAN DIAGNOSA SERVER ==="
+    date
+    echo
+    cek_memori
+    cek_swap
+    cek_proses
+    cek_paging
+    ringkasan
+} | tee "$LAPORAN"
+
+echo
+echo "Laporan disimpan ke: $LAPORAN"
+```
+
+### Langkah 3:  Jalankan script diagnosa
+
+Command:
+
+```bash
+chmod +x ~/praktikum-os/week10-memory/diagnosa-server.sh
+cd ~/praktikum-os/week10-memory
+bash diagnosa-server.sh
+```
+
+
+Output:
+
+```bash
+root@UbuntuServer:~/praktikum-os/week10-memory# chmod +x ~/praktikum-os/week10-memory/diagnosa-server.sh
+root@UbuntuServer:~/praktikum-os/week10-memory# cd ~/praktikum-os/week10-memory
+root@UbuntuServer:~/praktikum-os/week10-memory# bash diagnosa-server.sh
+=== LAPORAN DIAGNOSA SERVER ===
+Tue May  5 05:34:38 PM UTC 2026
+
+--- Kondisi Memori ---
+               total        used        free      shared  buff/cache   available
+Mem:           3.7Gi       461Mi       2.0Gi       1.0Mi       1.5Gi       3.3Gi
+Swap:          4.5Gi          0B       4.5Gi
+
+--- Penggunaan Swap ---
+NAME             TYPE SIZE USED PRIO
+/swapfile        file   4G   0B   -2
+/swapfile-week10 file 512M   0B   -3
+
+--- 10 Proses Memori Tertinggi ---
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root        1142  0.0  1.1 691508 44200 ?        Ssl  14:08   0:02 /usr/libexec/fwupd/fwupd
+root         367  0.0  0.6 288988 27324 ?        SLsl 13:57   0:02 /sbin/multipathd -d -s
+root         651  0.0  0.5 109684 23180 ?        Ssl  13:57   0:00 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+root         312  0.0  0.4  66856 17368 ?        S<s  13:57   0:00 /usr/lib/systemd/systemd-journald
+root         623  0.0  0.3 468972 13620 ?        Ssl  13:57   0:00 /usr/libexec/udisks2/udisksd
+root           1  0.0  0.3  22216 13248 ?        Ss   13:57   0:02 /sbin/init splash noprompt noshell automatic-ubiquity
+systemd+     462  0.0  0.3  21584 12996 ?        Ss   13:57   0:00 /usr/lib/systemd/systemd-resolved
+root         681  0.0  0.3 392032 12912 ?        Ssl  13:57   0:00 /usr/sbin/ModemManager
+fauzi        967  0.0  0.2  20100 11256 ?        Ss   14:00   0:00 /usr/lib/systemd/systemd --user
+root        1037  0.0  0.2  14964 10652 ?        Ss   14:01   0:00 sshd: fauzi [priv]
+
+--- Aktivitas Paging (5 sampel) ---
+procs -----------memory---------- ---swap-- -----io---- -system-- -------cpu-------
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st gu
+ 1  0      0 2070124  35524 1577768    0    0    42   102  323    0  0  0 100  0  0  0
+ 0  0      0 2070124  35524 1577812    0    0     0     0  435  151  1  1 99  0  0  0
+ 0  0      0 2070124  35524 1577812    0    0     0     0  205   65  0  0 100  0  0  0
+ 0  0      0 2070124  35524 1577812    0    0     0     4  167   66  0  0 100  0  0  0
+ 0  0      0 2070124  35524 1577812    0    0     0     0  188   54  0  0 100  0  0  0
+
+=== RINGKASAN ===
+- Memori: normal
+- Swap: tidak digunakan
+
+Laporan disimpan ke: diagnosa-server-lambat.txt
+```
+
+
+**Analisis**
+1. Jelaskan peran masing-masing fungsi: cek_memori, cek_swap, cek_proses,
+cek_paging, dan ringkasan. Mengapa diagnosa dipecah menjadi fungsi
+terpisah?  
+Jawaban:  
+cek_memori: Menampilkan kondisi RAM. Menghitung persentase memori tersedia  
+cek_swap: Menampilkan swap aktif. Mengecek apakah swap sedang digunakan  
+cek_proses: Menampilkan 10 proses dengan penggunaan memori terbesar  
+cek_paging: Menjalankan vmstat 1 5. Melihat aktivitas si (swap in) dan so (swap out)  
+ringkasan: Menyimpulkan kondisi RAM (normal/kritis) dan Swap (digunakan/tidak)  
+Dipisah menjadi fungsi agar lebih modular, reusable, dan mudah dalam maintenance
+
+2. Berdasarkan bagian RINGKASAN, apakah kondisi sistem normal atau kritis?
+Jelaskan berdasarkan nilai threshold yang digunakan script.  
+Jawaban:  
+Available = 3.3 Gi dari 3.7 Gi sekitar 89%  
+Threshold = 20%. Jauh di atas batas artinya NORMAL  
+Swap used = 0B. Tidak ada tekanan memori  
+Jadi, sistem dalam keadaan normal
+
+3. Mengapa script menggunakan tee "$LAPORAN" bukan redirection biasa >
+"$LAPORAN"? Apa keuntungannya?  
+Jawaban:  
+penggunaan tee dapat digunakan untuk output ke file + tampil di terminal, sedangakan > hanya ke file  
+Keuntungan menggunakan tee adalh bisa lihat hasil langsung di layar sekaligus tersimpan ke file. cocok untuk monitoring/debugging
+
+4. Dari output cek_paging, apakah ada aktivitas si atau so? Jika ada, apa
+implikasinya terhadap performa server?  
+Jawaban:  
+so dan so tidak ada aktivitasnya. berarti tidak ada data yang dipindahkan. 
