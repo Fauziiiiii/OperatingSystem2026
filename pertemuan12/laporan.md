@@ -855,5 +855,208 @@ Analisis:
 tidak terdapat service layanan yang gagal
 
 
+---
 
 
+# Latihan 10.2 Layanan Kustom dengan Restart Otomatis
+
+
+### Langkah 1: Buat skrip Bash (referensi Bab 7) bernama monitor-disk.sh yang setiap 30 detik menuliskan penggunaan disk ke berkas log. Gunakan df -h dan date
+
+Command:
+
+```bash
+nano monitor-disk.sh
+#!/bin/bash
+
+LOGFILE="$HOME/praktikum-os/week12/chapter10-services/disk-monitor.log"
+
+while true
+do
+    echo "============================" >> "$LOGFILE"
+    echo "Waktu: $(date)" >> "$LOGFILE"
+    df -h >> "$LOGFILE"
+    echo "" >> "$LOGFILE"
+
+    sleep 30
+done
+
+chmod +x monitor-disk.sh
+
+```
+
+
+### Langkah 2: Buat berkas unit /etc/systemd/system/monitor-disk.service untuk menjalankan skrip tersebut dengan konfigurasi: Restart=always, RestartSec=5s, dan berjalan sebagai pengguna kamu sendiri
+
+Command:
+
+```bash
+sudo nano /etc/systemd/system/monitor-disk.service
+[Unit]
+Description=Monitor Penggunaan Disk
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/root/praktikum-os/week12/chapter10-services/monitor-disk.sh
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+
+sudo systemctl daemon-reload
+```
+
+
+### Langkah 3: Aktifkan dan jalankan layanan. Verifikasi dengan systemctl status dan pastikan log masuk ke journal.
+
+Command:
+
+```bash
+sudo systemctl enable monitor-disk
+sudo systemctl start monitor-disk
+
+systemctl status monitor-disk
+
+journalctl -u monitor-disk -n 20 --no-pager
+
+cat ~/praktikum-os/week12/chapter10-services/disk-monitor.log
+```
+
+
+Output:
+
+```bash
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# sudo systemctl enable monitor-disk
+Created symlink /etc/systemd/system/multi-user.target.wants/monitor-disk.service → /etc/systemd/system/monitor-disk.service.
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# sudo systemctl start monitor-disk
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# systemctl status monitor-disk
+● monitor-disk.service - Monitor Penggunaan Disk
+     Loaded: loaded (/etc/systemd/system/monitor-disk.service; enabled; preset: enabled)
+     Active: active (running) since Wed 2026-05-20 17:05:22 UTC; 6s ago
+   Main PID: 4153 (monitor-disk.sh)
+      Tasks: 2 (limit: 4486)
+     Memory: 656.0K (peak: 908.0K)
+        CPU: 14ms
+     CGroup: /system.slice/monitor-disk.service
+             ├─4153 /bin/bash /root/praktikum-os/week12/chapter10-services/monitor-disk.sh
+             └─4156 sleep 30
+
+May 20 17:05:22 UbuntuServer systemd[1]: Started monitor-disk.service - Monitor Penggunaan Disk.
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# cat ~/praktikum-os/week12/chapter10-services/disk-monitor.log
+============================
+Waktu: Wed May 20 05:05:22 PM UTC 2026
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           382M  1.1M  381M   1% /run
+/dev/sda2        25G  8.3G   15G  36% /
+tmpfs           1.9G     0  1.9G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           382M   12K  382M   1% /run/user/1000
+
+============================
+Waktu: Wed May 20 05:05:52 PM UTC 2026
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           382M  1.1M  381M   1% /run
+/dev/sda2        25G  8.3G   15G  36% /
+tmpfs           1.9G     0  1.9G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           382M   12K  382M   1% /run/user/1000
+
+============================
+Waktu: Wed May 20 05:06:22 PM UTC 2026
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           382M  1.1M  381M   1% /run
+/dev/sda2        25G  8.3G   15G  36% /
+tmpfs           1.9G     0  1.9G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           382M   12K  382M   1% /run/user/1000
+
+============================
+Waktu: Wed May 20 05:06:52 PM UTC 2026
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           382M  1.1M  381M   1% /run
+/dev/sda2        25G  8.3G   15G  36% /
+tmpfs           1.9G     0  1.9G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           382M   12K  382M   1% /run/user/1000
+
+============================
+Waktu: Wed May 20 05:07:22 PM UTC 2026
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           382M  1.1M  381M   1% /run
+/dev/sda2        25G  8.3G   15G  36% /
+tmpfs           1.9G     0  1.9G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           382M   12K  382M   1% /run/user/1000
+
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# journalctl -u monitor-disk -n 20 --no-pager
+May 20 17:05:22 UbuntuServer systemd[1]: Started monitor-disk.service - Monitor Penggunaan Disk.
+```
+
+
+### Langkah 4: Simulasikan crash dengan membunuh proses secara paksa (kill -9), tunggu 10 detik, dan verifikasi bahwa layanan hidup kembali secara otomatis.
+
+Command:
+
+```bash
+systemctl status monitor-disk | grep "Main PID"
+
+sudo kill -9 $(systemctl show monitor-disk --property=MainPID --value)
+
+sleep 10
+
+systemctl status monitor-disk
+```
+
+
+Output:
+
+```bash
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# systemctl status monitor-disk | grep "Main PID"
+   Main PID: 4153 (monitor-disk.sh)
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# sudo kill -9 $(systemctl show monitor-disk --property=MainPID --value)
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# sleep 10
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# systemctl status monitor-disk
+● monitor-disk.service - Monitor Penggunaan Disk
+     Loaded: loaded (/etc/systemd/system/monitor-disk.service; enabled; preset: enabled)
+     Active: active (running) since Wed 2026-05-20 17:29:17 UTC; 1min 30s ago
+   Main PID: 4353 (monitor-disk.sh)
+      Tasks: 2 (limit: 4486)
+     Memory: 560.0K (peak: 1.0M)
+        CPU: 41ms
+     CGroup: /system.slice/monitor-disk.service
+             ├─4353 /bin/bash /root/praktikum-os/week12/chapter10-services/monitor-disk.sh
+             └─4368 sleep 30
+
+May 20 17:29:17 UbuntuServer systemd[1]: monitor-disk.service: Scheduled restart job, restart counter is at 1.
+May 20 17:29:17 UbuntuServer systemd[1]: Started monitor-disk.service - Monitor Penggunaan Disk.
+```
+
+
+### Langkah 5: Bersihkan: nonaktifkan layanan dan hapus berkas unit setelah selesai.
+
+Command:
+
+```bash
+sudo systemctl disable --now monitor-disk
+
+sudo rm /etc/systemd/system/monitor-disk.service
+
+sudo systemctl daemon-reload
+
+systemctl status monitor-disk
+```
+
+
+Output:
+
+```bash
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# sudo systemctl disable --now monitor-disk
+Removed "/etc/systemd/system/multi-user.target.wants/monitor-disk.service".
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# sudo rm /etc/systemd/system/monitor-disk.service
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# sudo systemctl daemon-reload
+root@UbuntuServer:~/praktikum-os/week12/chapter10-services# systemctl status monitor-disk
+Unit monitor-disk.service could not be found.
+```
